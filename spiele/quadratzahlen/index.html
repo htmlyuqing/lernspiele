@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Quadratzahlen 11&#8211;19</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f5f4f0;
+    --surface: #ffffff;
+    --border: #dddbd4;
+    --text: #1a1a18;
+    --muted: #7a7870;
+    --green-bg: #e8f5e0;
+    --green-border: #5a9e1a;
+    --green-text: #2d5e08;
+    --red-bg: #fceaea;
+    --red-border: #d94040;
+    --red-text: #8a1f1f;
+    --accent: #1D9E75;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  body {
+    font-family: -apple-system, 'Helvetica Neue', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 24px 16px 40px;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  #game {
+    width: 100%;
+    max-width: 480px;
+  }
+
+  h1 {
+    font-size: 17px;
+    font-weight: 600;
+    text-align: center;
+    color: var(--muted);
+    letter-spacing: 0.02em;
+    margin-bottom: 20px;
+  }
+
+  /* Mode tabs */
+  .mode-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    background: var(--border);
+    border-radius: var(--radius-sm);
+    padding: 3px;
+  }
+  .mode-btn {
+    flex: 1;
+    padding: 9px 4px;
+    font-size: 13px;
+    font-family: -apple-system, 'Helvetica Neue', sans-serif;
+    font-weight: 500;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s, color 0.15s;
+  }
+  .mode-btn.active {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  }
+
+  /* Stats bar */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .stat { text-align: center; }
+  .stat-label { font-size: 11px; color: var(--muted); margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .stat-value { font-size: 22px; font-weight: 600; color: var(--text); }
+
+  /* Progress */
+  .progress-bar {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.35s ease;
+  }
+
+  /* Question card */
+  .question-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 36px 24px;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .question-label {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+  .question-text {
+    font-size: 44px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1;
+  }
+  .sup {
+    font-size: 24px;
+    font-weight: 700;
+    vertical-align: super;
+    line-height: 0;
+  }
+
+  /* Answer buttons */
+  .answers {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .ans-btn {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px 8px;
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+    font-family: -apple-system, 'Helvetica Neue', sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.12s, border-color 0.12s, transform 0.08s;
+    touch-action: manipulation;
+  }
+  .ans-btn:active { transform: scale(0.96); }
+  .ans-btn.correct { background: var(--green-bg); border-color: var(--green-border); color: var(--green-text); }
+  .ans-btn.wrong   { background: var(--red-bg);   border-color: var(--red-border);   color: var(--red-text); }
+  .ans-btn.reveal  { background: var(--green-bg); border-color: var(--green-border); color: var(--green-text); }
+  .ans-btn:disabled { cursor: default; }
+
+  /* Input mode */
+  #inputArea { margin-bottom: 16px; }
+  #numInput {
+    width: 100%;
+    font-size: 28px;
+    font-weight: 600;
+    padding: 18px;
+    text-align: center;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+    font-family: -apple-system, 'Helvetica Neue', sans-serif;
+    -webkit-appearance: none;
+    outline: none;
+  }
+  #numInput:focus { border-color: var(--accent); }
+  #submitBtn {
+    width: 100%;
+    margin-top: 10px;
+    padding: 16px;
+    font-size: 17px;
+    font-weight: 600;
+    font-family: -apple-system, 'Helvetica Neue', sans-serif;
+    background: var(--text);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  #submitBtn:active { opacity: 0.8; }
+
+  /* Feedback */
+  .feedback {
+    text-align: center;
+    font-size: 15px;
+    font-weight: 500;
+    min-height: 24px;
+    margin-bottom: 8px;
+    color: var(--muted);
+  }
+  .feedback.ok  { color: var(--green-text); }
+  .feedback.err { color: var(--red-text); }
+
+  /* Result */
+  .result-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 36px 24px;
+    text-align: center;
+  }
+  .result-big { font-size: 56px; margin-bottom: 8px; }
+  .result-sub { font-size: 15px; color: var(--muted); margin-bottom: 28px; }
+  .result-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+  .result-stat {
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+    padding: 14px 8px;
+  }
+  .result-stat-v { font-size: 22px; font-weight: 700; }
+  .result-stat-l { font-size: 11px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .restart-btn {
+    width: 100%;
+    padding: 16px;
+    font-size: 17px;
+    font-weight: 600;
+    font-family: -apple-system, 'Helvetica Neue', sans-serif;
+    background: var(--text);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  .restart-btn:active { opacity: 0.8; }
+</style>
+</head>
+<body>
+<div id="game">
+  <h1>Quadratzahlen 11&#8211;19</h1>
+
+  <div class="mode-row">
+    <button class="mode-btn active" id="btnMC" onclick="setMode('mc')">Multiple Choice</button>
+    <button class="mode-btn"        id="btnIN" onclick="setMode('input')">Eingabe</button>
+    <button class="mode-btn"        id="btnRV" onclick="setMode('reverse')">Umkehren</button>
+  </div>
+
+  <div id="playArea">
+    <div class="header">
+      <div class="stat">
+        <div class="stat-label">Punkte</div>
+        <div class="stat-value" id="score">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Frage</div>
+        <div class="stat-value" id="qnum">1/9</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Streak</div>
+        <div class="stat-value" id="streak">0</div>
+      </div>
+    </div>
+
+    <div class="progress-bar">
+      <div class="progress-fill" id="progFill" style="width:0%"></div>
+    </div>
+
+    <div class="question-card">
+      <div class="question-label" id="qLabel">Wie viel ist</div>
+      <div class="question-text"  id="qText"></div>
+    </div>
+
+    <div class="answers" id="answers"></div>
+
+    <div id="inputArea" style="display:none;">
+      <input id="numInput" type="number" inputmode="numeric" pattern="[0-9]*" placeholder="Antwort eingeben" />
+      <button id="submitBtn" onclick="submitInput()">Prüfen</button>
+    </div>
+
+    <div class="feedback" id="feedback"></div>
+  </div>
+
+  <div id="resultArea" style="display:none;">
+    <div class="result-card">
+      <div class="result-big" id="resBig"></div>
+      <div class="result-sub" id="resSub"></div>
+      <div class="result-grid">
+        <div class="result-stat">
+          <div class="result-stat-v" id="resScore">0</div>
+          <div class="result-stat-l">Punkte</div>
+        </div>
+        <div class="result-stat">
+          <div class="result-stat-v" id="resCorrect">0</div>
+          <div class="result-stat-l">Richtig</div>
+        </div>
+        <div class="result-stat">
+          <div class="result-stat-v" id="resStreak">0</div>
+          <div class="result-stat-l">Streak</div>
+        </div>
+      </div>
+      <button class="restart-btn" onclick="startGame()">Nochmal spielen</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var BASES = [11,12,13,14,15,16,17,18,19];
+var SQ = {};
+BASES.forEach(function(n){ SQ[n] = n * n; });
+var TOTAL = 9;
+var mode = 'mc';
+var questions, qi, score, streak, maxStreak, correct, answered;
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('btnMC').className = 'mode-btn' + (m === 'mc'      ? ' active' : '');
+  document.getElementById('btnIN').className = 'mode-btn' + (m === 'input'   ? ' active' : '');
+  document.getElementById('btnRV').className = 'mode-btn' + (m === 'reverse' ? ' active' : '');
+  startGame();
+}
+
+function shuffle(a) {
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+
+function startGame() {
+  var arr = shuffle(BASES.slice()).slice(0, TOTAL);
+  questions = arr.map(function(n){ return { base: n, answer: SQ[n] }; });
+  qi = 0; score = 0; streak = 0; maxStreak = 0; correct = 0; answered = false;
+  document.getElementById('score').textContent  = '0';
+  document.getElementById('streak').textContent = '0';
+  document.getElementById('progFill').style.width = '0%';
+  document.getElementById('playArea').style.display  = '';
+  document.getElementById('resultArea').style.display = 'none';
+  showQuestion();
+}
+
+function showQuestion() {
+  answered = false;
+  var q = questions[qi];
+  var fb = document.getElementById('feedback');
+  fb.textContent = ''; fb.className = 'feedback';
+
+  document.getElementById('qnum').textContent = (qi + 1) + '/' + TOTAL;
+  document.getElementById('progFill').style.width = (qi / TOTAL * 100) + '%';
+
+  var isRev = (mode === 'reverse');
+  document.getElementById('qLabel').textContent = isRev
+    ? 'Welche Zahl ergibt quadriert:'
+    : 'Wie viel ist';
+
+  var qEl = document.getElementById('qText');
+  qEl.textContent = '';
+  if (isRev) {
+    qEl.textContent = String(q.answer);
+  } else {
+    qEl.appendChild(document.createTextNode(String(q.base)));
+    var sup = document.createElement('span');
+    sup.className = 'sup';
+    sup.textContent = '2';
+    qEl.appendChild(sup);
+  }
+
+  var ansDiv = document.getElementById('answers');
+  var inpDiv = document.getElementById('inputArea');
+
+  if (mode === 'input') {
+    ansDiv.style.display = 'none';
+    inpDiv.style.display = '';
+    var inp = document.getElementById('numInput');
+    inp.value = ''; inp.disabled = false;
+    inp.style.borderColor = ''; inp.style.background = '';
+    inp.onkeydown = function(e) { if (e.key === 'Enter') submitInput(); };
+  } else {
+    ansDiv.style.display = '';
+    inpDiv.style.display = 'none';
+    var correctAns = isRev ? q.base : q.answer;
+    var pool = isRev ? BASES.slice() : Object.keys(SQ).map(function(k){ return SQ[k]; });
+    var others = shuffle(pool.filter(function(x){ return x !== correctAns; }));
+    var opts = shuffle([correctAns].concat(others.slice(0, 3)));
+    ansDiv.innerHTML = '';
+    opts.forEach(function(opt) {
+      var b = document.createElement('button');
+      b.className = 'ans-btn';
+      b.textContent = String(opt);
+      b.setAttribute('data-val', String(opt));
+      b.onclick = (function(o, btn) {
+        return function() { selectAnswer(o, correctAns, btn); };
+      })(opt, b);
+      ansDiv.appendChild(b);
+    });
+  }
+}
+
+function selectAnswer(val, corr, btn) {
+  if (answered) return;
+  answered = true;
+  var btns = document.querySelectorAll('.ans-btn');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].disabled = true;
+    if (parseInt(btns[i].textContent, 10) === corr) btns[i].classList.add('reveal');
+  }
+  if (val === corr) {
+    btn.classList.remove('reveal');
+    btn.classList.add('correct');
+    doCorrect();
+  } else {
+    btn.classList.add('wrong');
+    doWrong('Richtig ware: ' + corr);
+  }
+  setTimeout(nextOrEnd, 1100);
+}
+
+function submitInput() {
+  if (answered) return;
+  var inp = document.getElementById('numInput');
+  var val = parseInt(inp.value, 10);
+  var corr = questions[qi].answer;
+  if (isNaN(val)) return;
+  answered = true; inp.disabled = true;
+  if (val === corr) {
+    inp.style.borderColor = '#5a9e1a'; inp.style.background = '#e8f5e0';
+    doCorrect();
+  } else {
+    inp.style.borderColor = '#d94040'; inp.style.background = '#fceaea';
+    doWrong('Richtig ware: ' + corr);
+  }
+  setTimeout(nextOrEnd, 1100);
+}
+
+function doCorrect() {
+  score += 1 + (streak >= 2 ? 1 : 0);
+  streak++; correct++;
+  maxStreak = Math.max(maxStreak, streak);
+  document.getElementById('score').textContent  = String(score);
+  document.getElementById('streak').textContent = String(streak);
+  var fb = document.getElementById('feedback');
+  fb.textContent = streak >= 3 ? String(streak) + 'er Streak!' : 'Richtig!';
+  fb.className = 'feedback ok';
+}
+
+function doWrong(msg) {
+  streak = 0;
+  document.getElementById('streak').textContent = '0';
+  var fb = document.getElementById('feedback');
+  fb.textContent = msg;
+  fb.className = 'feedback err';
+}
+
+function nextOrEnd() {
+  qi++;
+  if (qi >= TOTAL) showResult(); else showQuestion();
+}
+
+function showResult() {
+  document.getElementById('playArea').style.display   = 'none';
+  document.getElementById('resultArea').style.display = '';
+  var pct = Math.round(correct / TOTAL * 100);
+  var trophy = String.fromCodePoint(0x1F3C6);
+  var star   = String.fromCodePoint(0x2B50);
+  var thumb  = String.fromCodePoint(0x1F44D);
+  var muscle = String.fromCodePoint(0x1F4AA);
+  var emoji  = pct === 100 ? trophy : pct >= 78 ? star : pct >= 56 ? thumb : muscle;
+  document.getElementById('resBig').textContent     = emoji;
+  document.getElementById('resSub').textContent     = correct + ' von ' + TOTAL + ' richtig (' + pct + '%)';
+  document.getElementById('resScore').textContent   = String(score);
+  document.getElementById('resCorrect').textContent = correct + '/' + TOTAL;
+  document.getElementById('resStreak').textContent  = String(maxStreak);
+}
+
+startGame();
+</script>
+</body>
+</html>
