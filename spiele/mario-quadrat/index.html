@@ -802,7 +802,7 @@ document.querySelectorAll('.np-btn').forEach(btn=>{
     if(n==='del')inp.value=inp.value.slice(0,-1);
     else if(n==='ok')submitAnswer();
     else if(n==='-')inp.value=inp.value.startsWith('-')?inp.value.slice(1):'-'+inp.value;
-    else if(inp.value.replace('-','').length<2)inp.value+=n;
+    else if(inp.value.replace('-','').length<4)inp.value+=n;
   });
 });
 document.getElementById('btn-ok').addEventListener('click',submitAnswer);
