@@ -172,6 +172,11 @@ canvas{display:block;max-width:100%;border-radius:14px 14px 0 0;box-shadow:0 -2p
         <button class="np-btn" data-n="0">0</button>
         <button class="np-btn np-ok" data-n="ok">✓ OK</button>
       </div>
+      <div id="wrong-panel" style="display:none;flex-direction:column;align-items:center;gap:10px;width:100%;padding:4px 0;">
+        <div id="wrong-equation" style="font-weight:900;font-size:clamp(22px,5vw,34px);color:#ff6b6b;text-shadow:0 2px 6px rgba(0,0,0,.3);">❌</div>
+        <div id="wrong-correct" style="font-weight:900;font-size:clamp(30px,7vw,50px);color:#00e696;text-shadow:0 2px 12px rgba(0,200,120,.4);letter-spacing:2px;">✓</div>
+        <button id="btn-wrong-ok" style="background:linear-gradient(135deg,#e17055,#d63031);color:white;border:none;padding:12px 52px;border-radius:50px;font-family:'Nunito',sans-serif;font-size:clamp(15px,3vw,18px);font-weight:900;cursor:pointer;box-shadow:0 6px 20px rgba(214,48,49,.4);margin-top:2px;">OK</button>
+      </div>
     </div>
   </div>
   <div id="end-screen">
@@ -720,10 +725,8 @@ function collectCoin(i){
   if(c&&!c.collected){c.collected=true;state.score+=10;spawnParticles(c.x,c.y,'#fdcb6e',18);updateHUD();}
 }
 function loseLife(){
-  state.lives--;updateHUD();
-  spawnParticles(state.mario.x,state.mario.y,'#e52521',22);
-  showFeedback('💀 Leben verloren!','#e52521');
-  if(state.lives<=0){setTimeout(gameOver,800);state.gamePhase='dead';return;}
+  // Lives already decremented by submitAnswer; just handle respawn
+  if(state.lives<=0){state.gamePhase='dead';return;} // gameOver called by wrong panel OK
   const plat=state.platforms[state.activePlatIndex],m=state.mario;
   m.x=plat?plat.x-70:55;m.y=GY;m.vx=0;m.vy=0;m.onGround=true;m.squash=1;
   state.gamePhase='running';
@@ -767,9 +770,13 @@ function submitAnswer(){
       state.wrong++;
       state.lives--;updateHUD();
       spawnParticles(state.mario.x,state.mario.y,'#e52521',18);
-      showFeedback('❌ '+b.currentTask.n+'²='+b.currentTask.answer,'#e52521');
-      if(state.lives<=0){setTimeout(gameOver,800);state.gamePhase='dead';return;}
-      setTimeout(()=>bowserAskQuestion(),1200);
+      const isLast=state.lives<=0;
+      const savedTask=b.currentTask;
+      if(isLast) state.gamePhase='dead';
+      showWrongPanel(savedTask, ()=>{
+        if(isLast) gameOver();
+        else { b.hit=0; bowserAskQuestion(); }
+      });
     }
     return;
   }
@@ -786,8 +793,17 @@ function submitAnswer(){
     state.mario.vy=JUMP_V;state.mario.vx=2.8;state.mario.onGround=false;state.gamePhase='jumping';
   } else {
     state.wrong++;
-    showFeedback('❌  '+plat.task.n+'²='+plat.task.answer,'#ff6b6b');
-    state.mario.vy=-5;state.mario.vx=1.5;state.mario.onGround=false;state.gamePhase='falling';
+    state.lives--;
+    updateHUD();
+    spawnParticles(state.mario.x,state.mario.y,'#e52521',18);
+    state.mario.vy=-5;state.mario.vx=0;state.mario.onGround=false;state.gamePhase='falling';
+    const isLast=state.lives<=0;
+    const t=plat.task;
+    showWrongPanel(t, ()=>{
+      if(isLast) gameOver();
+      // else loseLife handles respawn when mario hits ground
+    });
+    return;
   }
   updateHUD();
 }
@@ -795,6 +811,26 @@ function showFeedback(text,color){
   const el=document.getElementById('feedback');
   el.textContent=text;el.style.color=color;el.style.opacity='1';
   clearTimeout(el._t);el._t=setTimeout(()=>{el.style.opacity='0';},1500);
+}
+function showWrongPanel(task, onOk){
+  // Hide input elements, show wrong panel
+  document.getElementById('task-display').style.visibility='hidden';
+  document.querySelector('.q-row').style.display='none';
+  document.getElementById('numpad').style.display='none';
+  document.getElementById('wrong-equation').textContent='❌  '+task.n+' × '+task.n+' = ?';
+  document.getElementById('wrong-correct').textContent=task.n+' × '+task.n+' = '+task.answer;
+  document.getElementById('wrong-panel').style.display='flex';
+  document.getElementById('question-panel').style.display='flex';
+  const btn=document.getElementById('btn-wrong-ok');
+  const handler=()=>{ btn.removeEventListener('click',handler); hideWrongPanel(); onOk(); };
+  btn.addEventListener('click',handler);
+}
+function hideWrongPanel(){
+  document.getElementById('task-display').style.visibility='';
+  document.querySelector('.q-row').style.display='';
+  document.getElementById('numpad').style.display='';
+  document.getElementById('wrong-panel').style.display='none';
+  document.getElementById('question-panel').style.display='none';
 }
 document.querySelectorAll('.np-btn').forEach(btn=>{
   btn.addEventListener('click',()=>{
@@ -914,14 +950,18 @@ function updateBowserFight(){
       b.questionTimer=60;
       b.timeLeft--;
       if(b.timeLeft<=0){
-        document.getElementById('question-panel').style.display='none';
         b.questionActive=false;
         state.lives--;updateHUD();
         spawnParticles(m.x,m.y,'#e52521',18);
-        showFeedback('⏰','#e52521');
         b.hit=60;
-        if(state.lives<=0){setTimeout(gameOver,800);state.gamePhase='dead';return;}
-        setTimeout(()=>bowserAskQuestion(),1200);
+        const isLastT=state.lives<=0;
+        const savedTaskT=b.currentTask;
+        if(isLastT) state.gamePhase='dead';
+        showWrongPanel(savedTaskT, ()=>{
+          if(isLastT) gameOver();
+          else { b.hit=0; bowserAskQuestion(); }
+        });
+        if(isLastT) return;
       }
     }
   }
