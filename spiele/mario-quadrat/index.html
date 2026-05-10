@@ -725,11 +725,11 @@ function collectCoin(i){
   if(c&&!c.collected){c.collected=true;state.score+=10;spawnParticles(c.x,c.y,'#fdcb6e',18);updateHUD();}
 }
 function loseLife(){
-  // Lives already decremented by submitAnswer; just handle respawn
-  if(state.lives<=0){state.gamePhase='dead';return;} // gameOver called by wrong panel OK
-  const plat=state.platforms[state.activePlatIndex],m=state.mario;
-  m.x=plat?plat.x-70:55;m.y=GY;m.vx=0;m.vy=0;m.onGround=true;m.squash=1;
-  state.gamePhase='running';
+  // Lives already decremented by submitAnswer; wrong panel handles the OK flow
+  // Just stop Mario — the wrong panel's OK callback sets gamePhase='running'
+  const m=state.mario;
+  m.vx=0;m.vy=0;m.y=GY;m.onGround=true;m.squash=1;
+  state.gamePhase='waiting'; // freeze until OK pressed
 }
 function openQuestion(plat){
   document.getElementById('task-display').textContent=plat.task.text+' ?';
@@ -796,12 +796,17 @@ function submitAnswer(){
     state.lives--;
     updateHUD();
     spawnParticles(state.mario.x,state.mario.y,'#e52521',18);
-    state.mario.vy=-5;state.mario.vx=0;state.mario.onGround=false;state.gamePhase='falling';
+    // Freeze Mario immediately — no falling animation while panel is open
+    state.mario.vx=0; state.mario.vy=0;
+    state.gamePhase='waiting';
     const isLast=state.lives<=0;
     const t=plat.task;
+    const platRef=state.platforms[state.activePlatIndex];
     showWrongPanel(t, ()=>{
-      if(isLast) gameOver();
-      // else loseLife handles respawn when mario hits ground
+      if(isLast){ gameOver(); return; }
+      const m=state.mario;
+      m.x=platRef?platRef.x-70:55; m.y=GY; m.vx=0; m.vy=0; m.onGround=true; m.squash=1;
+      state.gamePhase='running';
     });
     return;
   }
