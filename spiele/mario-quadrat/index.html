@@ -154,7 +154,7 @@ canvas{display:block;max-width:100%;border-radius:14px 14px 0 0;box-shadow:0 -2p
     <div id="question-panel">
       <div id="task-display">?</div>
       <div class="q-row">
-        <input type="number" id="answer-input" min="-20" max="40" autocomplete="off" placeholder="?" />
+        <input type="number" id="answer-input" min="0" max="999" autocomplete="off" placeholder="?" />
         <button class="btn-ok" id="btn-ok">✓ OK</button>
       </div>
       <div id="numpad">
@@ -802,7 +802,7 @@ document.querySelectorAll('.np-btn').forEach(btn=>{
     if(n==='del')inp.value=inp.value.slice(0,-1);
     else if(n==='ok')submitAnswer();
     else if(n==='-')inp.value=inp.value.startsWith('-')?inp.value.slice(1):'-'+inp.value;
-    else if(inp.value.replace('-','').length<4)inp.value+=n;
+    else if(inp.value.replace('-','').length<3)inp.value+=n;
   });
 });
 document.getElementById('btn-ok').addEventListener('click',submitAnswer);
