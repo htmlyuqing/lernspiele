@@ -196,6 +196,118 @@ canvas{display:block;max-width:100%;border-radius:14px 14px 0 0;box-shadow:0 -2p
 
 <script>
 'use strict';
+
+// ══════════ SOUND ENGINE (Web Audio API) ══════════
+const SFX = (()=>{
+  let ctx = null;
+  function getCtx(){
+    if(!ctx){
+      try{ ctx = new (window.AudioContext||window.webkitAudioContext)(); }
+      catch(e){ return null; }
+    }
+    if(ctx.state==='suspended') ctx.resume();
+    return ctx;
+  }
+  // Unlock audio on first gesture
+  function unlock(){
+    const ac=getCtx(); if(!ac)return;
+    // Play silent buffer to unlock iOS
+    const buf=ac.createBuffer(1,1,22050);
+    const src=ac.createBufferSource();
+    src.buffer=buf; src.connect(ac.destination);
+    src.start(0);
+  }
+  function tone(freq, type, vol, start, dur, ac){
+    try{
+      const o=ac.createOscillator(), g=ac.createGain();
+      o.connect(g); g.connect(ac.destination);
+      o.type=type; o.frequency.setValueAtTime(freq, start);
+      g.gain.setValueAtTime(vol, start);
+      g.gain.exponentialRampToValueAtTime(0.001, start+dur);
+      o.start(start); o.stop(start+dur+0.01);
+    }catch(e){}
+  }
+  function noise(vol, start, dur, ac){
+    try{
+    const buf=ac.createBuffer(1,ac.sampleRate*dur,ac.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1);
+    const src=ac.createBufferSource(), g=ac.createGain();
+    src.buffer=buf; src.connect(g); g.connect(ac.destination);
+    g.gain.setValueAtTime(vol,start);
+    g.gain.exponentialRampToValueAtTime(0.001,start+dur);
+    src.start(start); src.stop(start+dur+0.01);
+    }catch(e){}
+  }
+
+  return {
+    unlock,
+    coin(){ // classic coin pickup
+      const ac=getCtx(); if(!ac)return; const t=ac.currentTime;
+      tone(988, 'square', 0.3, t,      0.08, ac);
+      tone(1319,'square', 0.3, t+0.08, 0.14, ac);
+    },
+    jump(){ // spring jump
+      const ac=getCtx(); if(!ac)return; const t=ac.currentTime;
+      const o=ac.createOscillator(), g=ac.createGain();
+      o.connect(g); g.connect(ac.destination);
+      o.type='square'; o.frequency.setValueAtTime(200,t);
+      o.frequency.exponentialRampToValueAtTime(600,t+0.12);
+      g.gain.setValueAtTime(0.25,t);
+      g.gain.exponentialRampToValueAtTime(0.001,t+0.15);
+      o.start(t); o.stop(t+0.16);
+    },
+    correct(){ // correct answer fanfare
+      const ac=getCtx(); if(!ac)return; const t=ac.currentTime;
+      const notes=[523,659,784,1047];
+      notes.forEach((f,i)=>tone(f,'square',0.22,t+i*0.08,0.12,ac));
+    },
+    wrong(){ // wrong answer buzz
+      const ac=getCtx(); if(!ac)return; const t=ac.currentTime;
+      tone(180,'sawtooth',0.25,t,     0.08,ac);
+      tone(150,'sawtooth',0.25,t+0.09,0.12,ac);
+      noise(0.08,t,0.18,ac);
+    },
+    hit(){ // bowser hit
+      const ac=getCtx(); if(!ac)return; const t=ac.currentTime;
+      tone(400,'square',0.3,t,     0.05,ac);
+      tone(200,'square',0.3,t+0.05,0.08,ac);
+      noise(0.15,t,0.12,ac);
+    },
+    bowserAppear(){ // bowser roar
+      const ac=getCtx(); if(!ac)return; const t=ac.currentTime;
+      [80,70,60,50].forEach((f,i)=>tone(f,'sawtooth',0.3,t+i*0.07,0.1,ac));
+      noise(0.2,t,0.3,ac);
+    },
+    victory(){ // level complete jingle
+      const ac=getCtx(); if(!ac)return; const t=ac.currentTime;
+      const seq=[523,523,523,523,415,466,523,0,466,523];
+      seq.forEach((f,i)=>{ if(f>0) tone(f,'square',0.22,t+i*0.1,0.09,ac); });
+    },
+    gameOver(){ // sad trombone
+      const ac=getCtx(); if(!ac)return; const t=ac.currentTime;
+      [466,440,415,392,370].forEach((f,i)=>tone(f,'sawtooth',0.2,t+i*0.14,0.16,ac));
+    },
+    fireball(){ // fireball woosh
+      const ac=getCtx(); if(!ac)return; const t=ac.currentTime;
+      const o=ac.createOscillator(), g=ac.createGain();
+      o.connect(g); g.connect(ac.destination);
+      o.type='sawtooth'; o.frequency.setValueAtTime(800,t);
+      o.frequency.exponentialRampToValueAtTime(200,t+0.15);
+      g.gain.setValueAtTime(0.15,t);
+      g.gain.exponentialRampToValueAtTime(0.001,t+0.18);
+      o.start(t); o.stop(t+0.19);
+    },
+    stomp(){ // bowser stomp
+      const ac=getCtx(); if(!ac)return; const t=ac.currentTime;
+      tone(120,'square',0.35,t,0.06,ac);
+      noise(0.2,t+0.02,0.1,ac);
+    }
+  };
+})();
+// ══════════════════════════════════════════════════
+
+
 function rnd(a,b){return Math.floor(Math.random()*(b-a+1))+a;}
 function lerp(a,b,t){return a+(b-a)*t;}
 
@@ -722,7 +834,7 @@ function loop(){
 
 function collectCoin(i){
   const c=state.coins[i];
-  if(c&&!c.collected){c.collected=true;state.score+=10;spawnParticles(c.x,c.y,'#fdcb6e',18);updateHUD();}
+  if(c&&!c.collected){c.collected=true;state.score+=10;spawnParticles(c.x,c.y,'#fdcb6e',18);updateHUD();SFX.coin();}
 }
 function loseLife(){
   // Lives already decremented by submitAnswer; wrong panel handles the OK flow
@@ -756,12 +868,12 @@ function submitAnswer(){
       state.mario.vx=3.5; state.mario.facing=1;
       state.mario.vy=JUMP_V; state.mario.onGround=false;
       spawnParticles(b.x,GY-80,'#e52521',28);
-      showFeedback(b.hp>0?'💥':'👑','#fdcb6e');
+      showFeedback(b.hp>0?'💥':'👑','#fdcb6e');SFX.hit();
       updateHUD();
       if(b.hp<=0){
         b.defeated=true; state.score+=200;
         state.gamePhase='bowser_dead';
-        setTimeout(()=>showEndScreen(true),2400);
+        SFX.victory();setTimeout(()=>showEndScreen(true),2400);
       } else {
         setTimeout(()=>{ state.mario.vx=0; bowserAskQuestion(); }, 1600);
       }
@@ -770,6 +882,7 @@ function submitAnswer(){
       state.wrong++;
       state.lives--;updateHUD();
       spawnParticles(state.mario.x,state.mario.y,'#e52521',18);
+      SFX.wrong();
       const isLast=state.lives<=0;
       const savedTask=b.currentTask;
       if(isLast) state.gamePhase='dead';
@@ -786,11 +899,11 @@ function submitAnswer(){
   if(!plat)return;
   if(userAns===plat.task.answer){
     state.correct++;state.score+=20+state.level*5;
-    showFeedback('🎉','#00e696');
+    showFeedback('🎉','#00e696');SFX.correct();
     plat.solved=true;
     collectCoin(state.activePlatIndex);
     state.activePlatIndex++;
-    state.mario.vy=JUMP_V;state.mario.vx=2.8;state.mario.onGround=false;state.gamePhase='jumping';
+    state.mario.vy=JUMP_V;state.mario.vx=2.8;state.mario.onGround=false;state.gamePhase='jumping';SFX.jump();
   } else {
     state.wrong++;
     state.lives--;
@@ -798,7 +911,7 @@ function submitAnswer(){
     spawnParticles(state.mario.x,state.mario.y,'#e52521',18);
     // Freeze Mario immediately — no falling animation while panel is open
     state.mario.vx=0; state.mario.vy=0;
-    state.gamePhase='waiting';
+    state.gamePhase='waiting';SFX.wrong();
     const isLast=state.lives<=0;
     const t=plat.task;
     const platRef=state.platforms[state.activePlatIndex];
@@ -854,7 +967,7 @@ function levelComplete(){
     state.bowser.active=true;
     state.gamePhase='bowser_fight';
     state.mario.vx=0;
-    showFeedback('👹','#e52521');
+    showFeedback('👹','#e52521');SFX.bowserAppear();
     setTimeout(()=>bowserAskQuestion(), 1200);
   } else if(state.level<MAX_LEVELS){
     state.level++;showFeedback(`⭐ Level ${state.level}!`,'#fdcb6e');state.gamePhase='levelend';setTimeout(setupLevel,1600);
@@ -862,7 +975,7 @@ function levelComplete(){
     showEndScreen(true);
   }
 }
-function gameOver(){showEndScreen(false);}
+function gameOver(){SFX.gameOver();showEndScreen(false);}
 function showEndScreen(win){
   cancelAnimationFrame(animId);
   document.getElementById('game-screen').style.display='none';
@@ -890,8 +1003,8 @@ function startGame(){
   if(animId)cancelAnimationFrame(animId);
   initState();setupLevel();animId=requestAnimationFrame(loop);
 }
-document.getElementById('btn-start').addEventListener('click',startGame);
-document.getElementById('btn-restart').addEventListener('click',startGame);
+document.getElementById('btn-start').addEventListener('click',()=>{SFX.unlock();startGame();});
+document.getElementById('btn-restart').addEventListener('click',()=>{SFX.unlock();startGame();});
 document.addEventListener('keydown',e=>{
   if(document.getElementById('start-screen').style.display!=='none'&&(e.key===' '||e.key==='Enter'))startGame();
 });
@@ -982,7 +1095,7 @@ function updateBowserFight(){
     b.fireTimer++;
     if(b.fireTimer>90){
       b.fireTimer=0;
-      b.fireballs.push({x:b.x-45,y:GY-28,vx:-4.5,vy:-1.5,life:140});
+      b.fireballs.push({x:b.x-45,y:GY-28,vx:-4.5,vy:-1.5,life:140});SFX.fireball();
     }
   }
   b.fireballs.forEach(fb=>{fb.x+=fb.vx;fb.y+=fb.vy;fb.vy+=.12;if(fb.y>=GY-8){fb.y=GY-8;fb.vy*=-.55;}fb.life--;});
@@ -1009,6 +1122,7 @@ function updateBowserFight(){
   if(landingOnTop){
     m.vy=JUMP_V*.6; m.y=bTop;
     spawnParticles(b.x,bTop,'#ff6600',14);
+    SFX.stomp();
   }
 }
 
