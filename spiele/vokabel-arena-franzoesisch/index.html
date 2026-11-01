@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vokabel Arena</title>
+<style>
+body{font-family:Arial,sans-serif;background:#f3f5fa;margin:0;padding:20px;color:#182033}
+.app{max-width:650px;margin:auto;background:white;border-radius:20px;padding:25px;box-shadow:0 8px 30px #0001}
+h1{text-align:center}.score{text-align:right;font-weight:bold}
+label{display:block;margin-top:18px;font-weight:bold}select{width:100%;padding:12px;margin-top:6px;border:1px solid #ccd2df;border-radius:10px;font-size:16px}
+button{width:100%;padding:14px;margin-top:12px;border:0;border-radius:10px;font-size:16px;font-weight:bold;cursor:pointer}
+.start{background:#6256e8;color:white}.answer{background:#eef1f7;text-align:left}.next{background:#20283a;color:white}
+.correct{background:#ccefd9!important}.wrong{background:#ffd9dd!important}.home{background:#eef1f7;color:#182033;margin:4px 0 12px;border:1px solid #d7dce6}.writeInput{width:100%;box-sizing:border-box;padding:14px;border:2px solid #ccd2df;border-radius:10px;font-size:18px;margin-top:10px}.check{background:#6256e8;color:white}.selfKnown{background:#ccefd9;color:#176b3b}.selfUnknown{background:#ffd9dd;color:#9b2430}.solution{margin:12px 0;text-align:center;font-size:22px;font-weight:bold}
+.hidden{display:none}.word{text-align:center;font-size:38px;font-weight:bold;margin:35px 0}
+.info{display:flex;justify-content:space-between;color:#68738a;font-weight:bold}.feedback{text-align:center;min-height:25px;margin:12px;font-weight:bold}
+</style>
+</head>
+<body>
+<div class="app">
+<h1>🎮 Vokabel Arena</h1>
+<div class="score">⭐ <span id="score">0</span></div>
+
+<div id="setup">
+<h2>Spiel einstellen</h2>
+<label>Thema</label>
+<select id="cat">
+<option value="all">Alle Themen</option>
+<option value="basics">Grundwortschatz</option>
+<option value="school">Schule</option>
+<option value="travel">Reisen</option>
+<option value="food">Essen</option>
+</select>
+<label>Antwortart</label>
+<select id="answerMode">
+<option value="choice">🔘 Auswahlmöglichkeiten</option>
+<option value="write">⌨️ Wort selbst schreiben</option>
+<option value="self">🧠 Selbst abfragen</option>
+</select>
+<label>Abfragerichtung</label>
+<select id="direction">
+<option value="en-de">🇫🇷 Französisch → Deutsch</option>
+<option value="de-en">🇩🇪 Deutsch → Französisch</option>
+<option value="mixed">🔀 Gemischt</option>
+</select>
+<button class="start" onclick="startGame()">🎮 SPIEL STARTEN</button>
+</div>
+
+<div id="game" class="hidden">
+<div class="info"><span id="stage"></span><span id="progress"></span><span id="streak"></span></div><button class="home" onclick="endGame()">🏠 Spiel beenden</button>
+<p id="dir" style="text-align:center;color:#68738a"></p>
+<div class="word" id="word"></div>
+<div id="writeArea" class="hidden"></div>
+<div id="answers"></div>
+<div class="feedback" id="feedback"></div>
+<button class="next hidden" id="next" onclick="nextQuestion()">Weiter →</button>
+</div>
+
+<div id="result" class="hidden" style="text-align:center">
+<h2>🎉 Geschafft!</h2><p id="resultText"></p>
+<button class="start" onclick="location.reload()">Nochmal spielen</button>
+</div>
+</div>
+
+<script>
+const DATA={
+basics:[["bonjour","hallo"],["au revoir","auf Wiedersehen"],["maison","Haus"],["ami","Freund"],["famille","Familie"],["eau","Wasser"],["livre","Buch"],["beau","schön"],["rapide","schnell"],["lent","langsam"]],
+school:[["professeur","Lehrer"],["élève","Schüler"],["leçon","Unterrichtsstunde"],["devoirs","Hausaufgaben"],["examen","Prüfung"],["stylo","Stift"],["salle de classe","Klassenzimmer"],["question","Frage"],["réponse","Antwort"],["pause","Pause"]],
+travel:[["aéroport","Flughafen"],["billet","Fahrkarte"],["hôtel","Hotel"],["bagages","Gepäck"],["passeport","Reisepass"],["train","Zug"],["gare","Bahnhof"],["voyage","Reise"],["carte","Karte"],["plage","Strand"]],
+food:[["pomme","Apfel"],["pain","Brot"],["fromage","Käse"],["lait","Milch"],["petit-déjeuner","Frühstück"],["dîner","Abendessen"],["affamé","hungrig"],["assoiffé","durstig"],["légume","Gemüse"],["délicieux","lecker"]]
+};
+
+let pool=[],stagePool=[],retry=[],pos=0,stage=1,score=0,right=0,streak=0,locked=false,chosenDirection="en-de",answerMode="choice";
+
+function shuffle(a){return a.slice().sort(()=>Math.random()-0.5)}
+
+function startGame(){
+  const c=document.getElementById("cat").value;
+  chosenDirection=document.getElementById("direction").value;
+  answerMode=document.getElementById("answerMode").value;
+  pool=c==="all"?Object.values(DATA).flat():DATA[c].slice();
+  stagePool=shuffle(pool);retry=[];pos=0;stage=1;score=0;right=0;streak=0;
+  document.getElementById("score").textContent="0";
+  document.getElementById("setup").classList.add("hidden");
+  document.getElementById("result").classList.add("hidden");
+  document.getElementById("game").classList.remove("hidden");
+  showQuestion();
+}
+
+function showQuestion(){
+  locked=false;
+  const item=stagePool[pos];
+  let dir=chosenDirection==="mixed"?(Math.random()<.5?"en-de":"de-en"):chosenDirection;
+  item._dir=dir;
+  const question=dir==="en-de"?item[0]:item[1];
+  const correct=dir==="en-de"?item[1]:item[0];
+  document.getElementById("stage").textContent="Etappe "+stage;
+  document.getElementById("progress").textContent=right+" / "+pool.length;
+  document.getElementById("streak").textContent="🔥 "+streak;
+  document.getElementById("dir").textContent=dir==="en-de"?"Französisch → Deutsch":"Deutsch → Französisch";
+  document.getElementById("word").textContent=question;
+  document.getElementById("feedback").textContent="";
+  document.getElementById("next").classList.add("hidden");
+
+  const box=document.getElementById("answers");
+  const writeArea=document.getElementById("writeArea");
+  box.innerHTML=""; writeArea.innerHTML="";
+  if(answerMode==="write"){
+    writeArea.classList.remove("hidden");
+    const input=document.createElement("input");
+    input.id="typedAnswer"; input.className="writeInput";
+    input.type="text"; input.autocomplete="off"; input.placeholder="Deine Antwort";
+    const btn=document.createElement("button");
+    btn.className="check"; btn.textContent="Antwort prüfen";
+    btn.onclick=()=>checkAnswer(input.value,correct,btn,item);
+    input.addEventListener("keydown",e=>{if(e.key==="Enter")btn.click()});
+    writeArea.appendChild(input); writeArea.appendChild(btn);
+    setTimeout(()=>input.focus(),50);
+  }else if(answerMode==="self"){
+    writeArea.classList.remove("hidden");
+    const hint=document.createElement("div");
+    hint.className="solution";
+    hint.textContent="Überlege dir die Übersetzung und entscheide dann:";
+    const known=document.createElement("button");
+    known.className="selfKnown"; known.textContent="✅ Gewusst";
+    known.onclick=()=>selfCheck(true,correct,item);
+    const unknown=document.createElement("button");
+    unknown.className="selfUnknown"; unknown.textContent="❌ Nicht gewusst";
+    unknown.onclick=()=>selfCheck(false,correct,item);
+    writeArea.appendChild(hint); writeArea.appendChild(known); writeArea.appendChild(unknown);
+  }else{
+    writeArea.classList.add("hidden");
+    let wrong=pool.filter(x=>(dir==="en-de"?x[1]:x[0])!==correct)
+                   .map(x=>dir==="en-de"?x[1]:x[0]);
+    let choices=shuffle([correct,...shuffle(wrong).slice(0,3)]);
+    choices.forEach(answer=>{
+      const b=document.createElement("button");
+      b.className="answer"; b.textContent=answer;
+      b.onclick=()=>checkAnswer(answer,correct,b,item);
+      box.appendChild(b);
+    });
+  }
+}
+
+function selfCheck(knew,correct,item){
+  if(locked)return;
+  locked=true;
+  if(knew){
+    right++;streak++;score+=100+streak*10;
+    document.getElementById("feedback").textContent="✅ Super! Als gewusst markiert.";
+  }else{
+    streak=0;retry.push(item);
+    document.getElementById("feedback").textContent="🔁 Kommt in der nächsten Etappe wieder: "+correct;
+  }
+  document.getElementById("score").textContent=score;
+  document.getElementById("progress").textContent=right+" / "+pool.length;
+  document.getElementById("streak").textContent="🔥 "+streak;
+  document.getElementById("writeArea").innerHTML='<div class="solution">Richtige Antwort: '+escapeHtml(correct)+'</div>';
+  document.getElementById("next").classList.remove("hidden");
+}
+function escapeHtml(text){
+  const d=document.createElement("div"); d.textContent=text; return d.innerHTML;
+}
+function checkAnswer(answer,correct,button,item){
+  if(locked)return;
+  locked=true;
+  if(String(answer).trim().toLocaleLowerCase("de-DE")===String(correct).trim().toLocaleLowerCase("de-DE")){
+    right++;streak++;score+=100+streak*10;
+    button.classList.add("correct");
+    document.getElementById("feedback").textContent="✅ Richtig!";
+    if(answerMode==="write"){document.getElementById("typedAnswer").disabled=true;}
+  }else{
+    streak=0;retry.push(item);button.classList.add("wrong");
+    document.getElementById("feedback").textContent="❌ Falsch – diese Vokabel kommt wieder: "+correct;
+    document.querySelectorAll(".answer").forEach(b=>{if(b.textContent===correct)b.classList.add("correct")});
+    if(answerMode==="write"){document.getElementById("typedAnswer").value="";document.getElementById("typedAnswer").disabled=true;}
+  }
+  document.getElementById("score").textContent=score;
+  document.getElementById("progress").textContent=right+" / "+pool.length;
+  document.getElementById("streak").textContent="🔥 "+streak;
+  document.getElementById("next").classList.remove("hidden");
+}
+
+function nextQuestion(){
+  pos++;
+  if(pos<stagePool.length){showQuestion();return;}
+  if(retry.length===0){finish();return;}
+  stage++;
+  stagePool=shuffle(retry);retry=[];pos=0;
+  showQuestion();
+}
+
+function endGame(){
+  if(!confirm("Möchtest du das Spiel wirklich beenden und zur Startseite zurückkehren?")) return;
+  document.getElementById("game").classList.add("hidden");
+  document.getElementById("result").classList.add("hidden");
+  document.getElementById("setup").classList.remove("hidden");
+  document.getElementById("score").textContent="0";
+}
+function finish(){
+  document.getElementById("game").classList.add("hidden");
+  document.getElementById("result").classList.remove("hidden");
+  document.getElementById("resultText").innerHTML="Alle "+pool.length+" Vokabeln richtig gelernt!<br><br>"+stage+" Etappe(n) · "+score+" Punkte";
+}
+</script>
+</body>
+</html>
